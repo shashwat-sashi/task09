@@ -3,7 +3,6 @@ data "azurerm_virtual_network" "existing" {
   resource_group_name = var.resource_group
 }
 
-
 data "azurerm_subnet" "aks" {
   name                 = var.aks_subnet_name
   virtual_network_name = var.vnet_name
@@ -50,7 +49,7 @@ resource "azurerm_route_table" "afw" {
 }
 
 resource "azurerm_route" "afw_default" {
-  name                   = "default-route"
+  name                   = local.default_route
   resource_group_name    = var.resource_group
   route_table_name       = azurerm_route_table.afw.name
   address_prefix         = "0.0.0.0/0"
@@ -70,14 +69,17 @@ resource "azurerm_firewall_application_rule_collection" "app_rules" {
   priority            = 100
   action              = "Allow"
 
-  rule {
-    name             = "allow-http"
-    source_addresses = ["*"]
-    protocol {
-      type = "Http"
-      port = 80
+  dynamic "rule" {
+    for_each = local.application_rules
+    content {
+      name             = rule.value.name
+      source_addresses = rule.value.source_addresses
+      protocol {
+        type = rule.value.protocol.type
+        port = rule.value.protocol.port
+      }
+      target_fqdns = rule.value.target_fqdns
     }
-    target_fqdns = ["*"]
   }
 }
 
@@ -88,12 +90,15 @@ resource "azurerm_firewall_network_rule_collection" "net_rules" {
   priority            = 200
   action              = "Allow"
 
-  rule {
-    name                  = "allow-all-outbound"
-    source_addresses      = ["*"]
-    destination_addresses = ["*"]
-    destination_ports     = ["*"]
-    protocols             = ["TCP", "UDP"]
+  dynamic "rule" {
+    for_each = local.network_rules
+    content {
+      name                  = rule.value.name
+      source_addresses      = rule.value.source_addresses
+      destination_addresses = rule.value.destination_addresses
+      destination_ports     = rule.value.destination_ports
+      protocols             = rule.value.protocols
+    }
   }
 }
 
@@ -104,13 +109,16 @@ resource "azurerm_firewall_nat_rule_collection" "nat_rules" {
   priority            = 300
   action              = "Dnat"
 
-  rule {
-    name                  = "nginx"
-    protocols             = ["TCP"]
-    source_addresses      = ["*"]
-    destination_addresses = [azurerm_public_ip.afw.ip_address]
-    destination_ports     = ["80"]
-    translated_address    = var.aks_loadbalancer_ip
-    translated_port       = "80"
+  dynamic "rule" {
+    for_each = local.nat_rules
+    content {
+      name                  = rule.value.name
+      protocols             = rule.value.protocols
+      source_addresses      = rule.value.source_addresses
+      destination_addresses = rule.value.destination_addresses
+      destination_ports     = rule.value.destination_ports
+      translated_address    = rule.value.translated_address
+      translated_port       = rule.value.translated_port
+    }
   }
 }
