@@ -1,21 +1,26 @@
 variable "location" {
-  type = string
+  description = "Azure region to deploy resources in"
+  type        = string
 }
 
 variable "resource_group" {
-  type = string
+  description = "Name of the existing resource group"
+  type        = string
 }
 
 variable "vnet_name" {
-  type = string
+  description = "Name of the existing virtual network"
+  type        = string
 }
 
 variable "aks_subnet_name" {
-  type = string
+  description = "Name of the subnet for AKS cluster"
+  type        = string
 }
 
 variable "resource_prefix" {
-  type = string
+  description = "Prefix for all resource names"
+  type        = string
 }
 
 variable "aks_loadbalancer_ip" {
