@@ -1,3 +1,15 @@
+data "azurerm_virtual_network" "existing" {
+  name                = var.vnet_name
+  resource_group_name = var.resource_group
+}
+
+
+data "azurerm_subnet" "aks" {
+  name                 = var.aks_subnet_name
+  virtual_network_name = var.vnet_name
+  resource_group_name  = var.resource_group
+}
+
 resource "azurerm_subnet" "afw" {
   name                 = local.afw_subnet_name
   resource_group_name  = var.resource_group
@@ -49,12 +61,6 @@ resource "azurerm_route" "afw_default" {
 resource "azurerm_subnet_route_table_association" "aks" {
   subnet_id      = data.azurerm_subnet.aks.id
   route_table_id = azurerm_route_table.afw.id
-}
-
-data "azurerm_subnet" "aks" {
-  name                 = var.aks_subnet_name
-  virtual_network_name = var.vnet_name
-  resource_group_name  = var.resource_group
 }
 
 resource "azurerm_firewall_application_rule_collection" "app_rules" {
