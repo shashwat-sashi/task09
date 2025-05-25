@@ -66,7 +66,7 @@ resource "azurerm_firewall_application_rule_collection" "app_rules" {
   name                = "${var.resource_prefix}-app-rc"
   azure_firewall_name = azurerm_firewall.afw.name
   resource_group_name = var.resource_group
-  priority            = 100
+  priority            = 200
   action              = "Allow"
 
   dynamic "rule" {
@@ -87,7 +87,7 @@ resource "azurerm_firewall_network_rule_collection" "net_rules" {
   name                = "${var.resource_prefix}-net-rc"
   azure_firewall_name = azurerm_firewall.afw.name
   resource_group_name = var.resource_group
-  priority            = 200
+  priority            = 300
   action              = "Allow"
 
   dynamic "rule" {
@@ -106,7 +106,7 @@ resource "azurerm_firewall_nat_rule_collection" "nat_rules" {
   name                = "${var.resource_prefix}-nat-rc"
   azure_firewall_name = azurerm_firewall.afw.name
   resource_group_name = var.resource_group
-  priority            = 300
+  priority            = 100
   action              = "Dnat"
 
   dynamic "rule" {
