@@ -1,39 +1,29 @@
-variable "resource_prefix" {
-  description = "Prefix for all resource names"
-  type        = string
-}
-
 variable "location" {
-  description = "Azure region to deploy resources in"
-  type        = string
-}
-
-variable "resource_group" {
-  description = "Name of the existing resource group"
-  type        = string
-}
-
-variable "vnet_name" {
-  description = "Name of the existing virtual network"
+  description = "The Azure region where resources will be created"
   type        = string
 }
 
 variable "vnet_address_space" {
-  description = "Address space of the existing virtual network"
-  type        = string
-}
-
-variable "aks_subnet_name" {
-  description = "Name of the subnet for AKS cluster"
-  type        = string
-}
-
-variable "aks_subnet_address_space" {
-  description = "Address space of the AKS subnet"
+  description = "The address space of the existing Virtual Network"
   type        = string
 }
 
 variable "aks_loadbalancer_ip" {
-  description = "Public IP of AKS Load Balancer"
+  description = "The public IP address of the AKS load balancer"
+  type        = string
+}
+
+variable "subscription_id" {
+  description = "The Azure Subscription ID used to build full resource IDs"
+  type        = string
+}
+
+variable "firewall_subnet_prefix" {
+  description = "Subnet prefix for firewall subnet"
+  type        = string
+}
+
+variable "default_route_name" {
+  description = "Name for the default route"
   type        = string
 }

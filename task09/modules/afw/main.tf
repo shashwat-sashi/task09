@@ -1,25 +1,14 @@
-data "azurerm_virtual_network" "existing" {
-  name                = var.vnet_name
-  resource_group_name = var.resource_group
-}
-
-data "azurerm_subnet" "aks" {
-  name                 = var.aks_subnet_name
+resource "azurerm_subnet" "firewall_subnet" {
+  name                 = local.firewall_subnet_name
+  resource_group_name  = var.resource_group_name
   virtual_network_name = var.vnet_name
-  resource_group_name  = var.resource_group
+  address_prefixes     = [var.firewall_subnet_prefix]
 }
 
-resource "azurerm_subnet" "afw" {
-  name                 = local.afw_subnet_name
-  resource_group_name  = var.resource_group
-  virtual_network_name = var.vnet_name
-  address_prefixes     = [local.afw_subnet_cidr]
-}
-
-resource "azurerm_public_ip" "afw" {
-  name                = "${var.resource_prefix}-pip"
-  resource_group_name = var.resource_group
+resource "azurerm_public_ip" "firewall_pip" {
+  name                = local.public_ip_name
   location            = var.location
+  resource_group_name = var.resource_group_name
   allocation_method   = "Static"
   sku                 = "Standard"
 
@@ -29,44 +18,73 @@ resource "azurerm_public_ip" "afw" {
 }
 
 resource "azurerm_firewall" "afw" {
-  name                = "${var.resource_prefix}-afw"
+  name                = local.firewall_name
   location            = var.location
-  resource_group_name = var.resource_group
-  sku_name            = "AZFW_VNet"
-  sku_tier            = "Standard"
+  resource_group_name = var.resource_group_name
 
   ip_configuration {
     name                 = "configuration"
-    subnet_id            = azurerm_subnet.afw.id
-    public_ip_address_id = azurerm_public_ip.afw.id
+    subnet_id            = azurerm_subnet.firewall_subnet.id
+    public_ip_address_id = azurerm_public_ip.firewall_pip.id
   }
+
+  sku_name = "AZFW_VNet"
+  sku_tier = "Standard"
 }
 
-resource "azurerm_route_table" "afw" {
-  name                = "${var.resource_prefix}-rt"
+resource "azurerm_route_table" "rt" {
+  name                = local.route_table_name
   location            = var.location
-  resource_group_name = var.resource_group
+  resource_group_name = var.resource_group_name
 }
 
-resource "azurerm_route" "afw_default" {
-  name                   = local.default_route
-  resource_group_name    = var.resource_group
-  route_table_name       = azurerm_route_table.afw.name
+resource "azurerm_route" "default" {
+  name                   = local.default_route_name
+  resource_group_name    = var.resource_group_name
+  route_table_name       = azurerm_route_table.rt.name
   address_prefix         = "0.0.0.0/0"
   next_hop_type          = "VirtualAppliance"
   next_hop_in_ip_address = azurerm_firewall.afw.ip_configuration[0].private_ip_address
 }
 
-resource "azurerm_subnet_route_table_association" "aks" {
-  subnet_id      = data.azurerm_subnet.aks.id
-  route_table_id = azurerm_route_table.afw.id
+resource "azurerm_route" "aks_lv" {
+  name                = local.firewall_pip_route_name
+  resource_group_name = var.resource_group_name
+  route_table_name    = azurerm_route_table.rt.name
+  address_prefix      = "${azurerm_public_ip.firewall_pip.ip_address}/32"
+  next_hop_type       = "Internet"
+
 }
 
-resource "azurerm_firewall_application_rule_collection" "app_rules" {
-  name                = "${var.resource_prefix}-app-rc"
+resource "azurerm_subnet_route_table_association" "aks" {
+  subnet_id      = var.aks_subnet_id
+  route_table_id = azurerm_route_table.rt.id
+}
+
+resource "azurerm_firewall_network_rule_collection" "network" {
+  name                = var.network_rule_collection_name
   azure_firewall_name = azurerm_firewall.afw.name
-  resource_group_name = var.resource_group
+  resource_group_name = var.resource_group_name
   priority            = 200
+  action              = "Allow"
+
+  dynamic "rule" {
+    for_each = local.network_rules
+    content {
+      name                  = rule.value.name
+      protocols             = rule.value.protocols
+      source_addresses      = rule.value.source_addresses
+      destination_ports     = rule.value.destination_ports
+      destination_addresses = rule.value.destination_addresses
+    }
+  }
+}
+
+resource "azurerm_firewall_application_rule_collection" "app" {
+  name                = var.application_rule_collection_name
+  azure_firewall_name = azurerm_firewall.afw.name
+  resource_group_name = var.resource_group_name
+  priority            = 300
   action              = "Allow"
 
   dynamic "rule" {
@@ -74,51 +92,36 @@ resource "azurerm_firewall_application_rule_collection" "app_rules" {
     content {
       name             = rule.value.name
       source_addresses = rule.value.source_addresses
-      protocol {
-        type = rule.value.protocol.type
-        port = rule.value.protocol.port
+
+      dynamic "protocol" {
+        for_each = rule.value.protocols
+        content {
+          port = protocol.value.port
+          type = protocol.value.type
+        }
       }
+
       target_fqdns = rule.value.target_fqdns
     }
   }
 }
 
-resource "azurerm_firewall_network_rule_collection" "net_rules" {
-  name                = "${var.resource_prefix}-net-rc"
+resource "azurerm_firewall_nat_rule_collection" "nat" {
+  name                = var.nat_rule_collection_name
   azure_firewall_name = azurerm_firewall.afw.name
-  resource_group_name = var.resource_group
-  priority            = 300
-  action              = "Allow"
-
-  dynamic "rule" {
-    for_each = local.network_rules
-    content {
-      name                  = rule.value.name
-      source_addresses      = rule.value.source_addresses
-      destination_addresses = rule.value.destination_addresses
-      destination_ports     = rule.value.destination_ports
-      protocols             = rule.value.protocols
-    }
-  }
-}
-
-resource "azurerm_firewall_nat_rule_collection" "nat_rules" {
-  name                = "${var.resource_prefix}-nat-rc"
-  azure_firewall_name = azurerm_firewall.afw.name
-  resource_group_name = var.resource_group
+  resource_group_name = var.resource_group_name
   priority            = 100
   action              = "Dnat"
 
-  dynamic "rule" {
-    for_each = local.nat_rules
-    content {
-      name                  = rule.value.name
-      protocols             = rule.value.protocols
-      source_addresses      = rule.value.source_addresses
-      destination_addresses = rule.value.destination_addresses
-      destination_ports     = rule.value.destination_ports
-      translated_address    = rule.value.translated_address
-      translated_port       = rule.value.translated_port
-    }
+  rule {
+    name                  = "nginx-dnat-http"
+    source_addresses      = ["*"]
+    destination_ports     = ["80"]
+    destination_addresses = [azurerm_public_ip.firewall_pip.ip_address]
+    translated_address    = var.aks_loadbalancer_ip
+    translated_port       = "80"
+    protocols             = ["TCP"]
   }
+
+
 }

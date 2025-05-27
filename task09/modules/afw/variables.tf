@@ -1,29 +1,59 @@
-variable "location" {
-  description = "Azure region to deploy resources in"
+variable "prefix" {
+  description = "Prefix for resource naming"
   type        = string
 }
 
-variable "resource_group" {
-  description = "Name of the existing resource group"
+variable "resource_group_name" {
+  description = "Resource group name"
+  type        = string
+}
+
+variable "location" {
+  description = "Azure region"
   type        = string
 }
 
 variable "vnet_name" {
-  description = "Name of the existing virtual network"
+  description = "Virtual Network name"
+  type        = string
+}
+
+variable "vnet_address_space" {
+  description = "Address space of the VNet"
   type        = string
 }
 
 variable "aks_subnet_name" {
-  description = "Name of the subnet for AKS cluster"
+  description = "AKS subnet name"
   type        = string
 }
 
-variable "resource_prefix" {
-  description = "Prefix for all resource names"
+variable "aks_subnet_id" {
+  description = "ID of the AKS subnet"
+  type        = string
+}
+
+variable "firewall_subnet_prefix" {
+  description = "Subnet prefix for firewall subnet"
   type        = string
 }
 
 variable "aks_loadbalancer_ip" {
-  description = "Public IP of AKS Load Balancer"
+  description = "aks lb ip"
+  type        = string
+}
+
+variable "network_rule_collection_name" {
+  description = "Fully dynamic name for network rule collection"
+  type        = string
+}
+
+variable "application_rule_collection_name" {
+  description = "Fully dynamic name for application rule collection"
+  type        = string
+}
+
+variable "nat_rule_collection_name" {
+  description = "Fully dynamic name for NAT rule collection"
   type        = string
 }
